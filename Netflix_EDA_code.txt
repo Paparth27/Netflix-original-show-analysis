@@ -1,0 +1,78 @@
+SELECT * FROM netflix_originals_series;
+
+--Number of releases per genre
+SELECT major_genre, COUNT(title) as Count_OF_Show
+FROM netflix_originals_series
+GROUP BY major_genre;
+
+--How many releases per year per month
+SELECT premiere_year, MONTH(premiere_date) as premiere_month, count(title)
+FROM netflix_originals_series
+GROUP BY premiere_year, MONTH(premiere_date)
+ORDER BY premiere_year, MONTH(premiere_date);
+
+--Total Releases: Monthly distribution
+SELECT DATE_FORMAT(premiere_date,"MMMM") as PREMIERE_MONTH,
+        COUNT(title)
+FROM netflix_originals_series
+GROUP BY DATE_FORMAT(premiere_date,"MMMM")
+ORDER BY MONTH(premiere_date);
+
+--By month which Genra has the major releases
+WITH GenreCounts AS (
+    SELECT DATE_FORMAT(premiere_date, "MMMM") AS PREMIERE_MONTH,
+           major_genre,
+           COUNT(title) AS RELEASES
+    FROM netflix_originals_series
+    GROUP BY DATE_FORMAT(premiere_date, "MMMM"), major_genre
+),
+RankedGenres AS (
+    SELECT PREMIERE_MONTH,
+           major_genre,
+           RELEASES,
+           RANK() OVER (
+               PARTITION BY PREMIERE_MONTH
+               ORDER BY RELEASES DESC
+           ) AS Genre_rank
+    FROM GenreCounts
+)
+SELECT PREMIERE_MONTH,
+       major_genre,
+       RELEASES
+FROM RankedGenres
+WHERE Genre_rank = 1;
+
+--Average IMDB rating for Shows Status
+
+SELECT status,
+    count(title) as Number_of_Shows,
+    CAST(AVG(imdb_rating) as INTEGER) as imdb_avg
+FROM netflix_originals_series
+GROUP by status;
+
+--Shows with IMDB higher than average in their particular genre
+WITH average_imdb AS(
+    SELECT major_genre,
+        CAST(AVG(imdb_rating) as INTEGER) as avg_imdb
+    FROM netflix_originals_series
+    GROUP BY major_genre
+)
+
+SELECT n.major_genre,
+    title,
+    --premiere_year,
+    --seasons,
+    imdb_rating,
+    avg_imdb
+FROM netflix_originals_series n
+JOIN average_imdb a USING (major_genre)
+WHERE imdb_rating>avg_imdb;
+
+--Shows releases per genre per yer year
+SELECT major_genre,
+    subgenre,
+    premiere_year,
+    COUNT(title) as Releases
+FROM netflix_originals_series
+GROUP BY premiere_year, major_genre, subgenre
+ORDER BY major_genre, subgenre, premiere_year;
